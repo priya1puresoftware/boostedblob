@@ -89,7 +89,16 @@ def configure(**kwargs: Any) -> Iterator[None]:
 @contextlib.asynccontextmanager
 async def session_context() -> AsyncIterator[None]:
     if config.session is None:
-        set_event_loop_exception_handler()  # there could be a better place for this
+        # there could be a better place for this
+        set_event_loop_exception_handler()
+        if sys.version_info < (3, 8):
+            from concurrent.futures import ThreadPoolExecutor
+
+            loop = asyncio.get_event_loop()
+            loop.set_default_executor(
+                ThreadPoolExecutor(max_workers=min(32, (os.cpu_count() or 1) + 4))
+            )
+
         connector = aiohttp.TCPConnector(limit=0)
         async with aiohttp.ClientSession(connector=connector) as session:
             with configure(session=session):
