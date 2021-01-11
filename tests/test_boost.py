@@ -322,19 +322,21 @@ async def test_eager_async_iterator():
             results.append(i)
             yield i
 
-    eager_it = bbb.boost.EagerAsyncIterator(iterator())
-    assert results == []
-    await pause()
-    assert results == list(range(N))
-    assert [i async for i in eager_it] == list(range(N))
+    async with bbb.BoostExecutor(10) as e:
+        eager_it = e.eagerise(iterator())
+        assert results == []
+        await pause()
+        assert results == list(range(N))
 
-    results.clear()
-    lazy_it = iterator()
-    assert results == []
-    await pause()
-    assert results == []
-    await lazy_it.__anext__()
-    assert results == [0]
+        assert [i async for i in eager_it] == list(range(N))
+
+        results.clear()
+        lazy_it = iterator()
+        assert results == []
+        await pause()
+        assert results == []
+        await lazy_it.__anext__()
+        assert results == [0]
 
 
 @pytest.mark.asyncio
@@ -357,7 +359,7 @@ async def test_map_eager_async_iterator():
 
     results = []
     async with bbb.BoostExecutor(N // 3) as e:
-        it = e.map_ordered(identity_wait, bbb.boost.EagerAsyncIterator(iterator()))
+        it = e.map_ordered(identity_wait, e.eagerise(iterator()))
         asyncio.create_task(collect(it, results))
         assert started == []
         await pause()
@@ -386,7 +388,7 @@ async def test_map_eager_async_iterator_slow():
 
     results = []
     async with bbb.BoostExecutor(N) as e:
-        it = e.map_ordered(identity, bbb.boost.EagerAsyncIterator(iterator()))
+        it = e.map_ordered(identity, e.eagerise(iterator()))
         asyncio.create_task(collect(it, results))
         await pause()
 
