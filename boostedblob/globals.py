@@ -90,7 +90,7 @@ def configure(**kwargs: Any) -> Iterator[None]:
 async def session_context() -> AsyncIterator[None]:
     if config.session is None:
         set_event_loop_exception_handler()  # there could be a better place for this
-        connector = aiohttp.TCPConnector(limit=0)
+        connector = aiohttp.TCPConnector(limit=0, force_close=True, enable_cleanup_closed=True)
         async with aiohttp.ClientSession(connector=connector) as session:
             with configure(session=session):
                 yield
