@@ -2,6 +2,7 @@ import asyncio
 import contextlib
 import datetime
 import json
+import os
 import random
 import socket
 import sys
@@ -83,7 +84,7 @@ class Request:
             if attempt >= config.retry_limit:
                 raise error
 
-            if config.debug_mode or attempt + 1 >= 3:
+            if (config.debug_mode or attempt + 1 >= 3) and not os.environ.get("BBB_QUIET"):
                 print(
                     f"[boostedblob] Error when executing request on attempt {attempt + 1}, sleeping for "
                     f"{backoff:.1f}s before retrying. Details: {error}",

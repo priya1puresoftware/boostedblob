@@ -214,12 +214,12 @@ def set_event_loop_exception_handler() -> None:
 
             # While closing down, we remove the global session, causing other requests to fail. This
             # just causes noise, so ignore if that's the exception.
-            if not isinstance(exception, MissingSession):
+            if not isinstance(exception, MissingSession) and not os.environ.get("BBB_QUIET"):
                 print(
                     f"ERROR (while closing down): {type(exception).__name__}: {exception}",
                     file=sys.stderr,
                 )
-        else:
+        elif not os.environ.get("BBB_QUIET"):
             print(
                 f"ERROR (from event loop): {type(exception).__name__}: {message}", file=sys.stderr
             )
