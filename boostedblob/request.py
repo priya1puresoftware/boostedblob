@@ -20,7 +20,7 @@ class MissingSession(Exception):
     pass
 
 
-@dataclass
+@dataclass(frozen=True)
 class Request:
     method: str
     url: str
@@ -165,6 +165,7 @@ async def execute_retrying_read(request: Request) -> bytes:
                     f"sleeping for {backoff:.1f}s before retrying. Details: {error}",
                     file=sys.stderr,
                 )
+            await asyncio.sleep(backoff)
     raise AssertionError
 
 
