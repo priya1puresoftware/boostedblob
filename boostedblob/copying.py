@@ -71,14 +71,14 @@ async def _cloudpath_copyfile(
         await write_stream(dst, stream, executor, overwrite=overwrite)
         return
     if isinstance(dst, CloudPath):
-        if type(src) is type(dst):
-            await cloudcopyfile(src, dst, overwrite=overwrite)
-            return
+        # if type(src) is type(dst):
+        #     await cloudcopyfile(src, dst, overwrite=overwrite)
+        #     return
 
-        if size is not None and size <= config.chunk_size:
-            # skip a network request for small files
-            await write_single(dst, await read_single(src), overwrite=overwrite)
-            return
+        # if size is not None and size <= config.chunk_size:
+        #     # skip a network request for small files
+        #     await write_single(dst, await read_single(src), overwrite=overwrite)
+        #     return
 
         if isinstance(dst, GooglePath):
             # google doesn't support unordered writes
