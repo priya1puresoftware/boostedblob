@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-import functools
 import json
 import os
 import sys
 import time
+import warnings
 from dataclasses import dataclass, field
 from typing import (
     Any,
@@ -109,7 +109,9 @@ class TokenManager(Generic[T]):
 
 @dataclass
 class Config:
-    session: Optional[aiohttp.ClientSession] = None
+    @property
+    def session(self) -> aiohttp.ClientSession:
+        return get_or_create_loop_session()
 
     debug_mode: bool = bool(os.environ.get("BBB_DEBUG"))
 
@@ -137,6 +139,33 @@ class Config:
 
 config: Config = Config()
 
+_sessions: Dict[asyncio.AbstractEventLoop, aiohttp.ClientSession] = {}
+
+
+def create_session() -> aiohttp.ClientSession:
+    # NB: We currently seem to leak file descriptors. E.g., if you run with -X dev, you'll see
+    # "ResourceWarning: unclosed resource <TCPTransport ...>"
+    # This can be fixed by changing the following line to:
+    # connector = aiohttp.TCPConnector(limit=0, force_close=True, enable_cleanup_closed=True)
+    # Both additional arguments are apparently necessary. Unfortunately this negates the
+    # benefits of reusing connections. If you only have a single aiohttp.ClientSession, as is
+    # recommended, this isn't really a problem.
+    # Also note:
+    # https://docs.aiohttp.org/en/stable/client_advanced.html#graceful-shutdown
+    # https://github.com/aio-libs/aiohttp/issues/1925#issuecomment-715977247
+    # While the sleep suggested doesn't work, it does indicate that this is a problem for
+    # aiohttp in general.
+    connector = aiohttp.TCPConnector(limit=0)
+    return aiohttp.ClientSession(connector=connector)
+
+
+def get_or_create_loop_session() -> aiohttp.ClientSession:
+    loop = asyncio.get_running_loop()
+    if loop not in _sessions:
+        set_event_loop_exception_handler()  # there could be a better place for this
+        _sessions[loop] = create_session()
+    return _sessions[loop]
+
 
 @contextlib.contextmanager
 def configure(**kwargs: Any) -> Iterator[None]:
@@ -150,36 +179,13 @@ def configure(**kwargs: Any) -> Iterator[None]:
 
 @contextlib.asynccontextmanager
 async def session_context() -> AsyncIterator[None]:
-    if config.session is None:
-        set_event_loop_exception_handler()  # there could be a better place for this
-
-        # NB: We currently seem to leak file descriptors. E.g., if you run with -X dev, you'll see
-        # "ResourceWarning: unclosed resource <TCPTransport ...>"
-        # This can be fixed by changing the following line to:
-        # connector = aiohttp.TCPConnector(limit=0, force_close=True, enable_cleanup_closed=True)
-        # Both additional arguments are apparently necessary. Unfortunately this negates the
-        # benefits of reusing connections. If you only have a single aiohttp.ClientSession, as is
-        # recommended, this isn't really a problem.
-        # Also note:
-        # https://docs.aiohttp.org/en/stable/client_advanced.html#graceful-shutdown
-        # https://github.com/aio-libs/aiohttp/issues/1925#issuecomment-715977247
-        # While the sleep suggested doesn't work, it does indicate that this is a problem for
-        # aiohttp in general.
-        connector = aiohttp.TCPConnector(limit=0)
-        async with aiohttp.ClientSession(connector=connector) as session:
-            with configure(session=session):
-                yield
-    else:
-        yield
+    warnings.warn("`session_context` is deprecated, remove it!", DeprecationWarning)
+    yield
 
 
 def ensure_session(fn: F) -> F:
-    @functools.wraps(fn)
-    async def wrapper(*args: Any, **kwargs: Any) -> Any:
-        async with session_context():
-            return await fn(*args, **kwargs)
-
-    return wrapper  # type: ignore
+    warnings.warn("`ensure_session` is deprecated, remove it!", DeprecationWarning)
+    return fn
 
 
 def set_event_loop_exception_handler() -> None:
@@ -209,20 +215,9 @@ def set_event_loop_exception_handler() -> None:
 
         # Our main interest here is minimising the other various errors and tracebacks that
         # drown out the politely formatted errors from cli.py when things go wrong
-        if "exception was never retrieved" in message:
-            from .request import MissingSession
-
-            # While closing down, we remove the global session, causing other requests to fail. This
-            # just causes noise, so ignore if that's the exception.
-            if not isinstance(exception, MissingSession):
-                print(
-                    f"ERROR (while closing down): {type(exception).__name__}: {exception}",
-                    file=sys.stderr,
-                )
-        else:
-            print(
-                f"ERROR (from event loop): {type(exception).__name__}: {message}", file=sys.stderr
-            )
+        print(
+            f"ERROR (from event loop): {type(exception).__name__}: {message}", file=sys.stderr
+        )
         if loop.get_debug():
             loop.default_exception_handler(context)
 
