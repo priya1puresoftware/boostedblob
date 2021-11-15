@@ -74,8 +74,7 @@ class Request:
 
                     assert resp.reason is not None
                     reason = str(resp.reason)
-                    if config.debug_mode:
-                        reason += ", Body: " + (await resp.text())
+                    reason += ",\nBody:\n" + (await resp.text()) + ",\nHeaders:\n" + str(resp.headers)
                     error = RequestFailure(reason=reason, request=self, status=resp.status)
                     if resp.status not in self.retry_codes:
                         raise self.failure_exceptions.get(resp.status, error)
