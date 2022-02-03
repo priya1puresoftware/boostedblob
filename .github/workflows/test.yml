@@ -34,6 +34,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install black
         pip install pytest
+        pip install blobfile
         
     - name: test      
       run: |
