@@ -35,6 +35,7 @@ jobs:
         pip install black
         pip install pytest
         pip install blobfile
+        pip install aiohttp
         
     - name: test      
       run: |
