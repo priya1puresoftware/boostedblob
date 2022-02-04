@@ -10,20 +10,21 @@ jobs:
       matrix:
         os:
           - 'ubuntu-20.04'
-        python-version:
+        py:
           - '3.8'
         arch:
-          - 'x86_64'
+          - 'x64'
+          
     steps:
     - uses: actions/checkout@v2
-    - name: Set up Python 3.7
+    - name: Set up Python 3.8
       uses: actions/setup-python@v2
       with:
-        python-version: 3.7
+        python-version: 3.8
         
     - name: Install Dependencies
       run: |
-        sudo apt-get install curl python3 python3-pip && python3 -m pip install --upgrade pip
+        sudo apt-get update && apt-get install curl python3 python3-pip && python3 -m pip install --upgrade pip
         curl -sSL https://install.python-poetry.org | python3 -
         pip3 install poetry
         poetry install
