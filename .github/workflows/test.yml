@@ -3,6 +3,37 @@ name: Test
 on: [push, pull_request]
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - 'ubuntu-20.04'
+        python-version:
+          - '3.8'
+        arch:
+          - 'x86_64'
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python 3.7
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.7
+        
+    - name: Install Dependencies
+      run: |
+        sudo apt-get install curl python3 python3-pip && python3 -m pip install --upgrade pip
+        curl -sSL https://install.python-poetry.org | python3 -
+        pip3 install poetry
+        poetry install
+        poetry shell
+        pip3 install black
+        
+    - name: test      
+      run: |
+        BBB_TEST_LOCATIONS='' ./test.sh
+
   armv64_job:
     name: Build and Test for arm64
     runs-on: ubuntu-20.04
@@ -15,16 +46,12 @@ jobs:
         run: |
            docker run --rm -v ${{ github.workspace }}:/ws:rw --workdir=/ws \
              arm64v8/ubuntu:20.04 \
-              bash -exc 'apt-get update && apt-get -y install git curl && apt install python3 python3-pip software-properties-common && \
-              add-apt-repository ppa:deadsnakes/ppa && \
-              apt install python3.7 && \
-              apt install python3.7 python3-venv python3.7-venv && \
-              python3.7 -m venv py37-venv && \
-              . py37-venv/bin/activate && \
+              bash -exc 'apt-get update && apt-get -y install git python3 python3-pip curl && \
               python3 -m pip install --upgrade pip && \
               pip3 install boostedblob && \
               curl -sSL https://install.python-poetry.org | python3 - && \
               pip3 install poetry && \
               poetry install && \
+              pip3 install black && \
               BBB_TEST_LOCATIONS='' ./test.sh && \
               deactivate'
